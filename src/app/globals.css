@@ -3,25 +3,50 @@
 @tailwind utilities;
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #0b0d14;
+  --foreground: #e9edf8;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  scroll-behavior: smooth;
 }
 
 body {
   color: var(--foreground);
   background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Selection */
+::selection {
+  background: rgba(91,127,255,0.25);
+  color: #e9edf8;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #1f2540; border-radius: 9999px; }
+::-webkit-scrollbar-thumb:hover { background: #2d3558; }
+
+/* Dot-grid background used on auth pages */
+.bg-dot-grid {
+  background-color: #0b0d14;
+  background-image: radial-gradient(circle, #1f2540 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+/* Radial fade on auth pages */
+.bg-radial-fade::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background: radial-gradient(ellipse 80% 60% at 50% 0%, rgba(91,127,255,0.08) 0%, transparent 70%);
+  pointer-events: none;
+  z-index: 0;
 }
 
 @layer utilities {
-  .text-balance {
-    text-wrap: balance;
-  }
+  .text-balance { text-wrap: balance; }
 }
