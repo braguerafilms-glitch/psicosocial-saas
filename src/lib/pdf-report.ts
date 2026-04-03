@@ -653,7 +653,7 @@ export function generateAepPdf(input: AepPdfInput): jsPDF {
   ], ML, y);
   y += 7;
   const overallH = domainRows.length * 7;
-  constoverallStartY = y;
+  const overallStartY = y;
   // Left cell - overall score big
   doc.setDrawColor(...LGRAY); doc.setLineWidth(0.2);
   doc.setFillColor(or, og, ob, 0.15);
