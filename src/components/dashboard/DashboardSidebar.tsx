@@ -69,16 +69,16 @@ export function DashboardSidebar({ engineerName, companyName, avatarUrl }: Props
   return (
     <aside className="flex h-screen w-60 shrink-0 flex-col border-r border-border/60 bg-surface">
       {/* Brand */}
-      <div className="flex h-14 items-center gap-2.5 border-b border-border/60 px-5">
-        <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-accent/15 ring-1 ring-accent/20">
-          <svg className="h-3.5 w-3.5 text-accent" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-          </svg>
-        </div>
-        <div>
-          <p className="text-sm font-bold tracking-tight text-foreground">HSE Core</p>
-          <p className="text-[10px] leading-none text-muted">Riscos Psicossociais</p>
-        </div>
+      <div className="flex h-14 items-center border-b border-border/60 px-4">
+        {/* mix-blend-mode: multiply faz o fundo branco sumir no dark */}
+        <Image
+          src="/logo.png"
+          alt="HSE Core"
+          width={120}
+          height={36}
+          className="mix-blend-screen object-contain"
+          priority
+        />
       </div>
 
       {/* Nav */}
