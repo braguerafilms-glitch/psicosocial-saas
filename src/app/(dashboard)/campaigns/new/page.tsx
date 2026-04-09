@@ -9,6 +9,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { createClient } from "@/lib/supabase/client";
 import { supabaseErrorMessage } from "@/lib/supabase-errors";
 import { uniqueSlug } from "@/lib/slug";
+import { validateCPF, normalizeCPF, hashCPF } from "@/lib/cpf";
+import * as XLSX from "xlsx";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Textarea } from "@/components/ui/Textarea";
@@ -34,6 +36,9 @@ export default function NewCampaignPage() {
   const [sectorInput, setSectorInput] = useState("");
   const [jobLevels, setJobLevels] = useState<string[]>([]);
   const [jobLevelInput, setJobLevelInput] = useState("");
+  const [cpfs, setCpfs] = useState<string[]>([]);
+  const [cpfInput, setCpfInput] = useState("");
+  const [cpfError, setCpfError] = useState<string | null>(null);
   const {
     register,
     handleSubmit,
@@ -65,8 +70,43 @@ export default function NewCampaignPage() {
     })();
   }, []);
 
+  function addCpf(raw: string) {
+    const n = normalizeCPF(raw);
+    if (!validateCPF(n)) { setCpfError("CPF inválido"); return; }
+    if (cpfs.includes(n)) { setCpfError("CPF já adicionado"); return; }
+    setCpfs((p) => [...p, n]);
+    setCpfInput("");
+    setCpfError(null);
+  }
+
+  async function handleCpfFile(file: File) {
+    setCpfError(null);
+    const buf = await file.arrayBuffer();
+    const wb = XLSX.read(buf, { type: "array" });
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    const rows = XLSX.utils.sheet_to_json<unknown[]>(ws, { header: 1 });
+    const found: string[] = [];
+    const invalid: string[] = [];
+    for (const row of rows) {
+      for (const cell of row) {
+        const val = String(cell ?? "").trim();
+        const n = normalizeCPF(val);
+        if (n.length === 11) {
+          if (validateCPF(n) && !found.includes(n) && !cpfs.includes(n)) found.push(n);
+          else if (!validateCPF(n)) invalid.push(val);
+        }
+      }
+    }
+    if (found.length) setCpfs((p) => [...p, ...found]);
+    if (invalid.length) setCpfError(`${invalid.length} CPF(s) inválido(s) ignorado(s)`);
+  }
+
   async function onSubmit(values: Form) {
     setError(null);
+    if (cpfs.length === 0) {
+      setError("Adicione ao menos um CPF autorizado antes de criar a campanha.");
+      return;
+    }
     const supabase = createClient();
     const {
       data: { user },
@@ -106,6 +146,14 @@ export default function NewCampaignPage() {
       .single();
     if (insErr || !inserted) {
       setError(supabaseErrorMessage(insErr, "Erro ao criar campanha"));
+      return;
+    }
+    // Inserir participantes (CPF hasheado)
+    const hashes = await Promise.all(cpfs.map((c) => hashCPF(c)));
+    const participants = hashes.map((h) => ({ campaign_id: inserted.id, cpf_hash: h }));
+    const { error: pErr } = await supabase.from("campaign_participants").insert(participants);
+    if (pErr) {
+      setError(supabaseErrorMessage(pErr, "Erro ao salvar participantes"));
       return;
     }
     router.push(`/campaigns/${inserted.id}`);
@@ -250,6 +298,71 @@ export default function NewCampaignPage() {
                     <button type="button" onClick={() => setJobLevels((p) => p.filter((x) => x !== j))} className="text-muted hover:text-red-400">×</button>
                   </span>
                 ))}
+              </div>
+            )}
+          </div>
+
+          {/* CPFs autorizados */}
+          <div className="space-y-2">
+            <label className="block text-sm font-medium text-foreground">
+              CPFs autorizados <span className="text-red-400">*</span>
+            </label>
+            <p className="text-xs text-muted">
+              Apenas os CPFs cadastrados poderão responder. Cada CPF pode responder uma única vez.
+            </p>
+            {/* Input manual */}
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={cpfInput}
+                onChange={(e) => setCpfInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") { e.preventDefault(); addCpf(cpfInput); }
+                }}
+                placeholder="000.000.000-00"
+                maxLength={14}
+                className="flex-1 rounded-lg border border-border bg-surface px-3 py-2 text-sm text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-accent/50"
+              />
+              <button
+                type="button"
+                onClick={() => addCpf(cpfInput)}
+                className="rounded-lg border border-border bg-surface px-3 py-2 text-sm text-foreground hover:bg-card"
+              >
+                Adicionar
+              </button>
+            </div>
+            {/* Upload planilha */}
+            <div className="flex items-center gap-2">
+              <label className="cursor-pointer rounded-lg border border-dashed border-border bg-surface px-3 py-2 text-xs text-muted hover:border-accent/50 hover:text-foreground">
+                Importar planilha (Excel / CSV)
+                <input
+                  type="file"
+                  accept=".xlsx,.xls,.csv"
+                  className="hidden"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (f) void handleCpfFile(f);
+                    e.target.value = "";
+                  }}
+                />
+              </label>
+              {cpfs.length > 0 && (
+                <span className="text-xs font-semibold text-accent">{cpfs.length} CPF(s) adicionado(s)</span>
+              )}
+            </div>
+            {cpfError && (
+              <p className="text-xs text-red-400">{cpfError}</p>
+            )}
+            {cpfs.length > 0 && (
+              <div className="max-h-32 overflow-y-auto rounded-lg border border-border bg-surface p-2">
+                <div className="flex flex-wrap gap-1.5">
+                  {cpfs.map((c) => (
+                    <span key={c} className="inline-flex items-center gap-1 rounded-full border border-border bg-card px-2 py-0.5 text-xs text-foreground font-mono">
+                      {c.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4")}
+                      <button type="button" onClick={() => setCpfs((p) => p.filter((x) => x !== c))} className="text-muted hover:text-red-400">×</button>
+                    </span>
+                  ))}
+                </div>
               </div>
             )}
           </div>

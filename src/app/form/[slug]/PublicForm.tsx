@@ -7,6 +7,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { createClient } from "@/lib/supabase/client";
 import { supabaseErrorMessage } from "@/lib/supabase-errors";
 import { HSE_DOMAIN_ORDER, HSE_QUESTIONS } from "@/lib/hse-questions";
+import { validateCPF, normalizeCPF, hashCPF } from "@/lib/cpf";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Select } from "@/components/ui/Select";
@@ -36,12 +37,16 @@ type CampaignRow = {
 type Props = { campaign: CampaignRow };
 
 export function PublicForm({ campaign }: Props) {
-  const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
+  const [step, setStep] = useState<1 | 2 | 3 | 4 | 5>(1);
   const [agreed, setAgreed] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [answers, setAnswers] = useState<Record<number, number>>({});
   const [demo, setDemo] = useState<DemoForm | null>(null);
+  const [cpfInput, setCpfInput] = useState("");
+  const [cpfValidating, setCpfValidating] = useState(false);
+  const [cpfError, setCpfError] = useState<string | null>(null);
+  const [participantId, setParticipantId] = useState<string | null>(null);
 
   const companyName = campaign.companies?.name ?? "Empresa";
   const hasSectors = campaign.sectors.length > 0;
@@ -71,11 +76,35 @@ export function PublicForm({ campaign }: Props) {
     setAnswers((prev) => ({ ...prev, [questionId]: value }));
   }
 
+  async function validateCpf() {
+    setCpfError(null);
+    const normalized = normalizeCPF(cpfInput);
+    if (!validateCPF(normalized)) {
+      setCpfError("CPF inválido. Verifique e tente novamente.");
+      return;
+    }
+    setCpfValidating(true);
+    const supabase = createClient();
+    const hash = await hashCPF(normalized);
+    const { data, error } = await supabase
+      .from("campaign_participants")
+      .select("id, responded_at")
+      .eq("campaign_id", campaign.id)
+      .eq("cpf_hash", hash)
+      .maybeSingle();
+    setCpfValidating(false);
+    if (error) { setCpfError("Erro ao validar CPF. Tente novamente."); return; }
+    if (!data) { setCpfError("CPF não autorizado para esta avaliação."); return; }
+    if (data.responded_at) { setCpfError("Este CPF já respondeu esta avaliação."); return; }
+    setParticipantId(data.id);
+    setStep(3);
+  }
+
   async function submitAll() {
     setError(null);
     if (!demo) {
       setError("Preencha os dados profissionais antes de enviar.");
-      setStep(2);
+      setStep(3);
       return;
     }
     if (answeredCount < 35) {
@@ -111,15 +140,25 @@ export function PublicForm({ campaign }: Props) {
     }));
 
     const { error: aErr } = await supabase.from("question_answers").insert(rows);
-    setSubmitting(false);
     if (aErr) {
+      setSubmitting(false);
       setError(supabaseErrorMessage(aErr, "Erro ao salvar questões"));
       return;
     }
-    setStep(4);
+
+    // Marcar participante como respondido
+    if (participantId) {
+      await supabase
+        .from("campaign_participants")
+        .update({ responded_at: new Date().toISOString() })
+        .eq("id", participantId);
+    }
+
+    setSubmitting(false);
+    setStep(5);
   }
 
-  if (step === 4) {
+  if (step === 5) {
     return (
       <Card className="mx-auto max-w-xl border-border bg-card p-8 text-center">
         <h1 className="text-xl font-semibold text-foreground">Obrigado!</h1>
@@ -221,6 +260,35 @@ export function PublicForm({ campaign }: Props) {
       ) : null}
 
       {step === 2 ? (
+        <Card className="mx-auto max-w-md border-border bg-card p-8">
+          <h2 className="text-lg font-semibold text-foreground">Identificação</h2>
+          <p className="mt-1 text-sm text-muted">
+            Digite seu CPF para verificar se você está autorizado a responder esta avaliação.
+          </p>
+          <div className="mt-6 space-y-4">
+            <div>
+              <label className="block text-xs font-medium uppercase tracking-widest text-muted mb-1">CPF</label>
+              <input
+                type="text"
+                value={cpfInput}
+                onChange={(e) => setCpfInput(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); void validateCpf(); } }}
+                placeholder="000.000.000-00"
+                maxLength={14}
+                className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-accent/50"
+              />
+              {cpfError && <p className="mt-1 text-xs text-red-400">{cpfError}</p>}
+            </div>
+            <p className="text-xs text-muted">Seu CPF não será armazenado — é usado apenas para verificar o acesso.</p>
+            <div className="flex justify-between gap-3">
+              <Button type="button" variant="secondary" onClick={() => setStep(1)}>Voltar</Button>
+              <Button type="button" loading={cpfValidating} onClick={() => void validateCpf()}>Continuar</Button>
+            </div>
+          </div>
+        </Card>
+      ) : null}
+
+      {step === 3 ? (
         <Card className="border-border bg-card p-8">
           <h2 className="text-lg font-semibold text-foreground">
             Dados profissionais
@@ -232,7 +300,7 @@ export function PublicForm({ campaign }: Props) {
             className="mt-6 space-y-4"
             onSubmit={handleSubmit((values) => {
               setDemo(values);
-              setStep(3);
+              setStep(4);
             })}
           >
             {hasSectors && (
@@ -305,7 +373,7 @@ export function PublicForm({ campaign }: Props) {
               <option value="externo">Externo / campo</option>
             </Select>
             <div className="flex justify-between gap-3">
-              <Button type="button" variant="secondary" onClick={() => setStep(1)}>
+              <Button type="button" variant="secondary" onClick={() => setStep(2)}>
                 Voltar
               </Button>
               <Button type="submit" loading={isSubmitting}>
@@ -316,7 +384,7 @@ export function PublicForm({ campaign }: Props) {
         </Card>
       ) : null}
 
-      {step === 3 ? (
+      {step === 4 ? (
         <div className="space-y-4">
           <div className="sticky top-0 z-10 rounded-xl border border-border bg-surface/95 p-4 backdrop-blur">
             <div className="flex items-center justify-between gap-3">
@@ -381,7 +449,7 @@ export function PublicForm({ campaign }: Props) {
           ) : null}
 
           <div className="flex justify-between gap-3">
-            <Button type="button" variant="secondary" onClick={() => setStep(2)}>
+            <Button type="button" variant="secondary" onClick={() => setStep(3)}>
               Voltar
             </Button>
             <Button

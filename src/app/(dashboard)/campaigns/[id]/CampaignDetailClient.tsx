@@ -41,6 +41,7 @@ function statusBadge(status: CampaignStatus) {
 export function CampaignDetailClient({ campaignId }: Props) {
   const [campaign, setCampaign] = useState<CampaignRow | null>(null);
   const [count, setCount] = useState(0);
+  const [totalParticipants, setTotalParticipants] = useState(0);
   const [scores, setScores] = useState<Record<HseDomainKey, number> | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -94,6 +95,13 @@ export function CampaignDetailClient({ campaignId }: Props) {
       return (qa ?? []).map((a) => ({ question_id: a.question_id, raw_score: a.score }));
     });
     setScores(aggregateCampaignScores(perParticipant));
+
+    const { count: total } = await supabase
+      .from("campaign_participants")
+      .select("id", { count: "exact", head: true })
+      .eq("campaign_id", campaignId);
+    setTotalParticipants(total ?? 0);
+
     setLoading(false);
   }, [campaignId]);
 
@@ -167,7 +175,7 @@ export function CampaignDetailClient({ campaignId }: Props) {
             {statusBadge(campaign.status)}
           </div>
           <p className="mt-1 text-sm text-muted">
-            {campaign.companies?.name ?? "Empresa"} · HSE-IT · {year} · {count} avaliado{count !== 1 ? "s" : ""}
+            {campaign.companies?.name ?? "Empresa"} · HSE-IT · {year} · {count}{totalParticipants > 0 ? `/${totalParticipants}` : ""} avaliado{count !== 1 ? "s" : ""}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">

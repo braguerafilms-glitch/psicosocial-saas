@@ -190,5 +190,53 @@ using (
   )
 );
 
+-- Participantes autorizados por campanha (CPFs hasheados)
+create table if not exists public.campaign_participants (
+  id uuid primary key default gen_random_uuid(),
+  campaign_id uuid not null references public.campaigns (id) on delete cascade,
+  cpf_hash text not null,
+  responded_at timestamptz,
+  unique (campaign_id, cpf_hash)
+);
+
+create index if not exists campaign_participants_campaign_id_idx
+  on public.campaign_participants (campaign_id);
+
+alter table public.campaign_participants enable row level security;
+
+-- Engenheiro: acesso total aos participantes das suas campanhas
+create policy "participants_rw_engineer"
+on public.campaign_participants for all
+using (
+  exists (
+    select 1 from public.campaigns c
+    join public.sst_engineers e on e.id = c.engineer_id
+    where c.id = campaign_participants.campaign_id and e.user_id = auth.uid()
+  )
+)
+with check (
+  exists (
+    select 1 from public.campaigns c
+    join public.sst_engineers e on e.id = c.engineer_id
+    where c.id = campaign_participants.campaign_id and e.user_id = auth.uid()
+  )
+);
+
+-- Anon: leitura para validar CPF no formulário público
+create policy "participants_select_anon"
+on public.campaign_participants for select
+to anon, authenticated
+using (true);
+
+-- Anon: pode marcar responded_at apenas se ainda não respondeu
+create policy "participants_update_anon"
+on public.campaign_participants for update
+to anon, authenticated
+using (responded_at is null)
+with check (responded_at is not null);
+
+-- Migração (execute se o banco já existir):
+-- Ver bloco CREATE TABLE acima e rodar manualmente no SQL Editor.
+
 -- Storage: bucket logos (crie o bucket "logos" como público ou com políticas adequadas)
 -- Policies de Storage devem ser configuradas na UI do Supabase para o bucket `logos`.
