@@ -47,9 +47,7 @@ export function CampaignDetailClient({ campaignId }: Props) {
   const [busy, setBusy] = useState<string | null>(null);
 
   const appUrl =
-    typeof window !== "undefined"
-      ? process.env.NEXT_PUBLIC_APP_URL || window.location.origin
-      : "";
+    typeof window !== "undefined" ? window.location.origin : "";
 
   const load = useCallback(async () => {
     const supabase = createClient();
