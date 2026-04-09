@@ -13,7 +13,7 @@ export default async function PublicFormPage({
   const supabase = createAdminClient();
   const { data: campaign } = await supabase
     .from("campaigns")
-    .select("id,title,status,custom_message,sectors,job_levels,companies(name)")
+    .select("id,title,status,custom_message,companies(name)")
     .eq("slug", params.slug)
     .maybeSingle();
 
@@ -55,6 +55,12 @@ export default async function PublicFormPage({
     );
   }
 
+  const { data: extra } = await supabase
+    .from("campaigns")
+    .select("sectors,job_levels")
+    .eq("id", campaign.id)
+    .maybeSingle();
+
   const co = campaign.companies as { name: string } | { name: string }[] | null;
   const company = Array.isArray(co) ? co[0] ?? null : co;
 
@@ -65,8 +71,8 @@ export default async function PublicFormPage({
           id: campaign.id,
           title: campaign.title,
           custom_message: campaign.custom_message,
-          sectors: (campaign.sectors as string[]) ?? [],
-          job_levels: (campaign.job_levels as string[]) ?? [],
+          sectors: (extra?.sectors as string[]) ?? [],
+          job_levels: (extra?.job_levels as string[]) ?? [],
           companies: company,
         }}
       />
