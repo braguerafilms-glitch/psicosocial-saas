@@ -9,14 +9,13 @@ import { supabaseErrorMessage } from "@/lib/supabase-errors";
 import { HSE_DOMAIN_ORDER, HSE_QUESTIONS } from "@/lib/hse-questions";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
-import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 
 const labels = ["Nunca", "Raramente", "Às vezes", "Frequentemente", "Sempre"] as const;
 
 const demoSchema = z.object({
-  department: z.string().min(2, "Informe o setor"),
-  job_level: z.string().min(2, "Informe o cargo/nível"),
+  department: z.string().optional(),
+  job_level: z.string().optional(),
   gender: z.string().min(1, "Selecione"),
   age_range: z.string().min(1, "Selecione"),
   tenure_range: z.string().min(1, "Selecione"),
@@ -29,6 +28,8 @@ type CampaignRow = {
   id: string;
   title: string;
   custom_message: string | null;
+  sectors: string[];
+  job_levels: string[];
   companies: { name: string } | null;
 };
 
@@ -43,6 +44,8 @@ export function PublicForm({ campaign }: Props) {
   const [demo, setDemo] = useState<DemoForm | null>(null);
 
   const companyName = campaign.companies?.name ?? "Empresa";
+  const hasSectors = campaign.sectors.length > 0;
+  const hasJobLevels = campaign.job_levels.length > 0;
 
   const {
     register,
@@ -232,16 +235,30 @@ export function PublicForm({ campaign }: Props) {
               setStep(3);
             })}
           >
-            <Input
-              label="Setor"
-              error={errors.department?.message}
-              {...register("department")}
-            />
-            <Input
-              label="Cargo / nível hierárquico"
-              error={errors.job_level?.message}
-              {...register("job_level")}
-            />
+            {hasSectors && (
+              <Select
+                label="Setor"
+                error={errors.department?.message}
+                {...register("department")}
+              >
+                <option value="">Selecione</option>
+                {campaign.sectors.map((s) => (
+                  <option key={s} value={s}>{s}</option>
+                ))}
+              </Select>
+            )}
+            {hasJobLevels && (
+              <Select
+                label="Cargo / nível hierárquico"
+                error={errors.job_level?.message}
+                {...register("job_level")}
+              >
+                <option value="">Selecione</option>
+                {campaign.job_levels.map((j) => (
+                  <option key={j} value={j}>{j}</option>
+                ))}
+              </Select>
+            )}
             <Select
               label="Gênero"
               error={errors.gender?.message}

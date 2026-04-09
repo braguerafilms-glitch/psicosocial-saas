@@ -70,13 +70,12 @@ export function DashboardSidebar({ engineerName, companyName, avatarUrl }: Props
     <aside className="flex h-screen w-60 shrink-0 flex-col border-r border-border/60 bg-surface">
       {/* Brand */}
       <div className="flex h-14 items-center border-b border-border/60 px-4">
-        {/* mix-blend-mode: multiply faz o fundo branco sumir no dark */}
         <Image
           src="/logo.png"
           alt="HSE Core"
           width={120}
           height={36}
-          className="mix-blend-screen object-contain"
+          className="object-contain brightness-0 invert"
           priority
         />
       </div>

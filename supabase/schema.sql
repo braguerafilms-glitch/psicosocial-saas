@@ -46,11 +46,18 @@ create table if not exists public.campaigns (
   closes_at timestamptz,
   custom_message text,
   anonymous boolean not null default true,
+  sectors text[] not null default '{}',
+  job_levels text[] not null default '{}',
   created_at timestamptz not null default now()
 );
 
 create index if not exists campaigns_engineer_id_idx on public.campaigns (engineer_id);
 create index if not exists campaigns_company_id_idx on public.campaigns (company_id);
+
+-- Migração: setores e cargos configuráveis por campanha
+-- Execute no SQL Editor do Supabase se o banco já existir:
+-- alter table public.campaigns add column if not exists sectors text[] not null default '{}';
+-- alter table public.campaigns add column if not exists job_levels text[] not null default '{}';
 
 create table if not exists public.employee_responses (
   id uuid primary key default gen_random_uuid(),

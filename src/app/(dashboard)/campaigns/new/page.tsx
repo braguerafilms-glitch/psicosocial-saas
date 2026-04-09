@@ -29,9 +29,11 @@ export default function NewCampaignPage() {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [anonymous, setAnonymous] = useState(true);
-  const [companies, setCompanies] = useState<{ id: string; name: string }[]>(
-    [],
-  );
+  const [companies, setCompanies] = useState<{ id: string; name: string }[]>([]);
+  const [sectors, setSectors] = useState<string[]>([]);
+  const [sectorInput, setSectorInput] = useState("");
+  const [jobLevels, setJobLevels] = useState<string[]>([]);
+  const [jobLevelInput, setJobLevelInput] = useState("");
   const {
     register,
     handleSubmit,
@@ -97,6 +99,8 @@ export default function NewCampaignPage() {
           : null,
         custom_message: values.custom_message || null,
         anonymous,
+        sectors,
+        job_levels: jobLevels,
       })
       .select("id")
       .single();
@@ -158,6 +162,98 @@ export default function NewCampaignPage() {
               {...register("closes_at")}
             />
           </div>
+          {/* Setores */}
+          <div className="space-y-2">
+            <label className="block text-sm font-medium text-foreground">
+              Setores da empresa <span className="text-muted font-normal">(opcional)</span>
+            </label>
+            <p className="text-xs text-muted">Se cadastrar, o funcionário vai selecionar o setor no formulário.</p>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={sectorInput}
+                onChange={(e) => setSectorInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    const v = sectorInput.trim();
+                    if (v && !sectors.includes(v)) setSectors((p) => [...p, v]);
+                    setSectorInput("");
+                  }
+                }}
+                placeholder="Ex: Produção, Administrativo..."
+                className="flex-1 rounded-lg border border-border bg-surface px-3 py-2 text-sm text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-accent/50"
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  const v = sectorInput.trim();
+                  if (v && !sectors.includes(v)) setSectors((p) => [...p, v]);
+                  setSectorInput("");
+                }}
+                className="rounded-lg border border-border bg-surface px-3 py-2 text-sm text-foreground hover:bg-card"
+              >
+                Adicionar
+              </button>
+            </div>
+            {sectors.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {sectors.map((s) => (
+                  <span key={s} className="inline-flex items-center gap-1 rounded-full border border-border bg-surface px-3 py-1 text-xs text-foreground">
+                    {s}
+                    <button type="button" onClick={() => setSectors((p) => p.filter((x) => x !== s))} className="text-muted hover:text-red-400">×</button>
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Cargos */}
+          <div className="space-y-2">
+            <label className="block text-sm font-medium text-foreground">
+              Cargos / níveis hierárquicos <span className="text-muted font-normal">(opcional)</span>
+            </label>
+            <p className="text-xs text-muted">Se cadastrar, o funcionário vai selecionar o cargo no formulário.</p>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={jobLevelInput}
+                onChange={(e) => setJobLevelInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    const v = jobLevelInput.trim();
+                    if (v && !jobLevels.includes(v)) setJobLevels((p) => [...p, v]);
+                    setJobLevelInput("");
+                  }
+                }}
+                placeholder="Ex: Operador, Supervisor, Gerente..."
+                className="flex-1 rounded-lg border border-border bg-surface px-3 py-2 text-sm text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-accent/50"
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  const v = jobLevelInput.trim();
+                  if (v && !jobLevels.includes(v)) setJobLevels((p) => [...p, v]);
+                  setJobLevelInput("");
+                }}
+                className="rounded-lg border border-border bg-surface px-3 py-2 text-sm text-foreground hover:bg-card"
+              >
+                Adicionar
+              </button>
+            </div>
+            {jobLevels.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {jobLevels.map((j) => (
+                  <span key={j} className="inline-flex items-center gap-1 rounded-full border border-border bg-surface px-3 py-1 text-xs text-foreground">
+                    {j}
+                    <button type="button" onClick={() => setJobLevels((p) => p.filter((x) => x !== j))} className="text-muted hover:text-red-400">×</button>
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+
           <div className="flex items-center gap-3 rounded-lg border border-border bg-surface px-3 py-3">
             <input
               id="anon"
